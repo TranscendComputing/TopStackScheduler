@@ -1,0 +1,85 @@
+<project name="scheduler" basedir="." default="jar.all">
+	<property name="name" value="scheduler" />
+	<property file="${user.home}/${name}.properties"/>
+	<property file="${user.home}/build.properties"/>
+	<property name="config.filename" value="${user.name}.properties"/>
+	<property file="${config.filename}"/>
+	<property file="build.properties"/>
+
+	<property name="project.base.dir" value="." />
+	<property name="src" value="${project.base.dir}/src" />
+	<property name="test" value="${project.base.dir}/test" />
+	<property name="build" value="${project.base.dir}/build" />
+	<property name="classes" value="${build}/classes" />
+	<property name="jar.dir" value="${project.base.dir}/build/lib/" />
+	<property name="lib" value="${build}/lib" />
+	<property name="external" value="${build}/external" />
+	<property name="external.jars" value="${build}/external/lib" />
+	<property name="resources" value="${project.base.dir}/resources" />
+	<property value="" name="jars.ok" />
+	<property name="hudson.url" value="jenkins.momentumsoftware.com:8080/" />
+
+    <property name="dist.suffix" value="" />
+    <property name="toughresources" value="TopStackResources${dist.suffix}" />
+    <property name="toughresources.dir" value="${project.base.dir}/../${toughresources}"/>
+    <import file="${toughresources.dir}/common.build.xml" />
+
+    <property name="maven.compat" value="true" />
+
+	<target name="init">
+		<mkdir dir="${build}" />
+		<mkdir dir="${classes}" />
+		<mkdir dir="${lib}" />
+		<mkdir dir="${external}" />
+		<mkdir dir="${external.jars}" />
+	</target>
+
+    <target name="copy-dependencies-dev" description="Get the project from local checkout builds" depends="init, maven.init" if="is.development">
+        <echo message="Development Build - gathering dependencies"/>
+		<dependencies-dev-maven>
+			<dependencies>
+		        <copy toFile="${external}/tough-resources-additional.zip" file="${toughresources.dir}/build/lib/tough-resources-additional.zip"/>
+		        <unzip dest="${external.jars}" src="${external}/tough-resources-additional.zip"/>
+			</dependencies>
+		</dependencies-dev-maven>
+    </target>
+
+    <target name="copy-dependencies-hudson" description="Get the project from hudson" depends="init, maven.init" unless="is.development">
+        <echo message="Jenkins Build - gathering dependencies"/>
+		<dependencies-jenkins-maven>
+			<dependencies>
+	        <get src="http://${hudson.url}/job/${toughresources}/@{project.build.number}/artifact/build/lib/tough-resources-additional.zip"
+	            dest="${external}/tough-resources-additional.zip"/>
+	        <unzip dest="${external.jars}" src="${external}/tough-resources-additional.zip"/>
+	        <get src="http://${hudson.url}/job/${monitorcommon}/@{project.build.number}/artifact/build/lib/tough-monitor-common.jar"
+	            dest="${external.jars}/tough-monitor-common.jar"/>
+		    </dependencies>
+		</dependencies-jenkins-maven>
+    </target>
+
+	<target name="copy.config" depends="init">
+		<copy todir="${classes}">
+			<fileset dir="${resources}">
+			</fileset>
+		</copy>
+	</target>
+
+	<target name="jar.all" depends="compile.src, copy.config" >
+		<copy toDir="${classes}/META-INF" failonerror="false">
+			<fileset dir="${resources}">
+				<include name="*.xml" />
+				<include name="*.wsdl" />
+				<include name="*.xsd" />
+			</fileset>
+		</copy>
+		<jar destfile="${lib}/${name}.jar">
+			<fileset excludes="**/Test*.class" dir="${classes}" />
+		</jar>
+	</target>
+
+    <target name="maven.deploy" depends="jar.all, maven.deploy.jar">
+    </target>
+
+
+
+</project>
